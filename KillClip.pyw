@@ -12,7 +12,29 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import webview
+
+def _unblock_bundle():
+    """Entfernt die „aus dem Internet“-Markierung von den mitgelieferten DLLs.
+
+    Aus einer heruntergeladenen ZIP entpackt, trägt jede Datei einen Zone.Identifier. .NET lädt
+    pythonnets Python.Runtime.dll dann nicht ("Failed to resolve Python.Runtime.Loader.Initialize")
+    und die Oberfläche startet nicht. Muss vor dem ersten Laden von pywebview/pythonnet laufen.
+    """
+    base = getattr(sys, "_MEIPASS", None)
+    if not base:
+        return
+    for dirpath, _dirs, files in os.walk(base):
+        for name in files:
+            if name.lower().endswith((".dll", ".exe", ".pyd")):
+                try:
+                    os.remove(os.path.join(dirpath, name) + ":Zone.Identifier")
+                except OSError:
+                    pass   # nicht markiert oder kein Schreibrecht
+
+
+_unblock_bundle()
+
+import webview  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
